@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Today’s affirmation</title>
+<meta name="description" content="A calm homepage with a new positive affirmation every time you open it.">
+<meta name="theme-color" content="#f6f2e7">
+<script>
+  // Set the theme before the page paints so there is no flash.
+  // Dark from 18:00 to 06:00. Change these two numbers to adjust.
+  (function () {
+    var h = new Date().getHours();
+    var dark = h >= 18 || h < 6;
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  })();
+</script>
+<style>
+  :root {
+    --bg: #f6f2e7;
+    --glow-a: #dfe7d6;
+    --glow-b: #ece6d4;
+    --shape: #dfe7d6;
+    --text: #2d4034;
+    --muted: #516b51;
+    --btn: #4f6a50;
+    --btn-text: #f6f2e7;
+    --btn-hover: #2d4034;
+    --focus: #2d4034;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color-scheme: light;
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #18221c;
+    --glow-a: #24342b;
+    --glow-b: #1d2b23;
+    --shape: #26372d;
+    --text: #eae6d6;
+    --muted: #a9bda5;
+    --btn: #9bb097;
+    --btn-text: #18221c;
+    --btn-hover: #c3d3bf;
+    --focus: #eae6d6;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; margin: 0; }
+
+  body {
+    background:
+      radial-gradient(60vmax 60vmax at 85% 110%, var(--glow-a) 0%, transparent 60%),
+      radial-gradient(50vmax 50vmax at 10% -10%, var(--glow-b) 0%, transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+    padding-top: calc(2rem + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  main {
+    width: 100%;
+    max-width: 44rem;
+    text-align: center;
+  }
+
+  header { margin-bottom: clamp(2rem, 7vh, 4rem); }
+
+  .greeting {
+    font-family: var(--serif);
+    font-size: clamp(1.25rem, 3.2vw, 1.6rem);
+    font-weight: 400;
+    margin: 0 0 0.35rem;
+    color: var(--muted);
+  }
+
+  .date {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--muted);
+  }
+
+  .affirmation-wrap {
+    position: relative;
+    padding: clamp(2.5rem, 8vh, 4.5rem) clamp(1rem, 4vw, 2.5rem);
+    min-height: 14rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* One soft sage shape sits behind the words. */
+  .affirmation-wrap::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--shape);
+    border-radius: 58% 42% 55% 45% / 48% 56% 44% 52%;
+    z-index: 0;
+  }
+
+  .affirmation {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(1.7rem, 5.2vw, 2.9rem);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    transition: opacity 0.35s ease;
+  }
+
+  .affirmation.is-changing { opacity: 0; }
+
+  .actions { margin-top: clamp(2rem, 6vh, 3.25rem); }
+
+  button {
+    font: inherit;
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--btn-text);
+    background: var(--btn);
+    border: 0;
+    border-radius: 999px;
+    padding: 0.85rem 2rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.15s ease;
+  }
+
+  button:hover { background: var(--btn-hover); }
+  button:active { transform: scale(0.97); }
+
+  button:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .affirmation, button { transition: none; }
+  }
+
+  @media (max-width: 480px) {
+    .affirmation-wrap::before { border-radius: 40px; }
+  }
+</style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1 class="greeting" id="greeting">Hello</h1>
+      <p class="date" id="date"></p>
+    </header>
+
+    <div class="affirmation-wrap">
+      <p class="affirmation" id="affirmation" aria-live="polite">Take a breath. You’re doing well.</p>
+    </div>
+
+    <div class="actions">
+      <button type="button" id="refresh">New affirmation</button>
+    </div>
+  </main>
+
+<script>
+(function () {
+  "use strict";
+
+  // Name shown in the greeting. Leave as "" to show no name.
+  var NAME = "James";
+
+  // Dark mode hours (24h clock): dark from DARK_FROM until DARK_UNTIL.
+  var DARK_FROM = 18;
+  var DARK_UNTIL = 6;
+
+  var groups = {
+    confidence: [
+      "I am capable of handling whatever today brings.",
+      "I trust myself to make good decisions.",
+      "My efforts matter, even when progress is slow.",
+      "I am allowed to take up space.",
+      "I bring something valuable to every room I walk into.",
+      "I choose to focus on what I can influence.",
+      "I am growing a little more every day.",
+      "Mistakes are how I learn, not who I am.",
+      "I have overcome hard things before, and I can do it again.",
+      "I deserve good things and I’m open to receiving them.",
+      "I am proud of how far I’ve come.",
+      "I can do this one step at a time.",
+      "My voice is worth hearing.",
+      "I am enough, exactly as I am today.",
+      "I meet challenges with patience and courage.",
+      "Today is a fresh start, and I’m ready for it.",
+      "I look for the good, and I find it.",
+      "I am becoming the person I want to be.",
+      "I give myself credit for the things I do well.",
+      "Good things are coming my way.",
+      "I am strong, kind and resilient.",
+      "I can say no and still be a good person."
+    ],
+    calm: [
+      "I breathe in calm and breathe out tension.",
+      "This moment is safe, and I am okay.",
+      "I let go of what I can’t control.",
+      "I don’t have to do everything today.",
+      "Rest is productive. I give myself permission to pause.",
+      "My worries do not define my future.",
+      "I am calm, steady and grounded.",
+      "Feelings pass, and I can ride this one out.",
+      "I release the pressure to be perfect.",
+      "I move through my day at a gentle pace.",
+      "There is peace available to me right now.",
+      "I am doing the best I can, and that is enough.",
+      "I welcome stillness and the clarity it brings.",
+      "I soften my shoulders and unclench my jaw.",
+      "It’s okay to take things slowly.",
+      "I choose calm over rush.",
+      "Small joys are worth noticing, so I notice them.",
+      "I forgive myself and move forward with kindness.",
+      "One calm breath at a time, I find my balance.",
+      "I am allowed to ask for help."
+    ],
+    esteem: [
+      "I am worthy of love and respect, just as I am.",
+      "I don’t need to earn my place. I already belong.",
+      "I speak to myself with the kindness I would show a good friend.",
+      "My worth is not measured by my productivity.",
+      "I am more than my mistakes and my worst days.",
+      "I accept my strengths and my flaws as part of one whole person.",
+      "I don’t need anyone’s approval to know my value.",
+      "I am allowed to be proud of myself.",
+      "I treat myself with patience while I learn and grow.",
+      "I am not behind. I am on my own path.",
+      "The way I feel about myself is getting kinder every day.",
+      "I have qualities that make me who I am, and I like them.",
+      "I deserve the same compassion I give to others.",
+      "I am worthy of rest, joy and good things.",
+      "I stop comparing myself and start appreciating myself.",
+      "I believe in my own ability to grow and change.",
+      "I celebrate my small wins, because they count.",
+      "My feelings are valid, and so am I.",
+      "I choose to see myself through kinder eyes.",
+      "I am a work in progress, and that is okay."
+    ]
+  };
+
+  // How strongly each kind of affirmation is favoured at different times of day.
+  var WEIGHTS = {
+    morning:   { confidence: 3, esteem: 2, calm: 1 },
+    afternoon: { confidence: 2, esteem: 2, calm: 2 },
+    evening:   { confidence: 1, esteem: 2, calm: 3 }
+  };
+
+  // Flatten into one list, remembering each affirmation's kind.
+  var all = [];
+  Object.keys(groups).forEach(function (kind) {
+    groups[kind].forEach(function (text) { all.push({ text: text, kind: kind }); });
+  });
+
+  var STORAGE_KEY = "affirmations-v2";
+  var el = document.getElementById("affirmation");
+  var btn = document.getElementById("refresh");
+  var greetingEl = document.getElementById("greeting");
+  var dateEl = document.getElementById("date");
+  var themeMeta = document.querySelector('meta[name="theme-color"]');
+  var reduceMotion = window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Indices already shown in the current round. A round ends once every
+  // affirmation has been shown, then the next round starts.
+  var seen = [];
+
+  try {
+    var saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (saved && saved.n === all.length && Array.isArray(saved.seen)) {
+      seen = saved.seen.filter(function (i) {
+        return typeof i === "number" && i >= 0 && i < all.length;
+      });
+    }
+  } catch (e) { /* storage unavailable or empty: start a fresh round */ }
+
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ n: all.length, seen: seen }));
+    } catch (e) { /* ignore */ }
+  }
+
+  function period(hour) {
+    if (hour >= 5 && hour < 12) return "morning";
+    if (hour >= 12 && hour < 18) return "afternoon";
+    return "evening";
+  }
+
+  function pickNext() {
+    var lastShown = seen.length ? seen[seen.length - 1] : -1;
+    var pool = [];
+    for (var i = 0; i < all.length; i++) {
+      if (seen.indexOf(i) === -1) pool.push(i);
+    }
+    if (pool.length === 0) {
+      // Round complete. Start again, but not on the one just shown.
+      seen = [];
+      for (var k = 0; k < all.length; k++) {
+        if (k !== lastShown) pool.push(k);
+      }
+    }
+    var w = WEIGHTS[period(new Date().getHours())];
+    var total = 0;
+    var weights = pool.map(function (idx) {
+      var wt = w[all[idx].kind];
+      total += wt;
+      return wt;
+    });
+    var r = Math.random() * total;
+    var chosen = pool[pool.length - 1];
+    for (var j = 0; j < pool.length; j++) {
+      r -= weights[j];
+      if (r < 0) { chosen = pool[j]; break; }
+    }
+    seen.push(chosen);
+    save();
+    return chosen;
+  }
+
+  function show(index) {
+    el.textContent = all[index].text;
+  }
+
+  function change() {
+    var index = pickNext();
+    if (reduceMotion) {
+      show(index);
+      return;
+    }
+    el.classList.add("is-changing");
+    setTimeout(function () {
+      show(index);
+      el.classList.remove("is-changing");
+    }, 350);
+  }
+
+  function updateClock() {
+    var now = new Date();
+    var hour = now.getHours();
+
+    var greeting = hour < 5 ? "Hello" :
+                   hour < 12 ? "Good morning" :
+                   hour < 18 ? "Good afternoon" : "Good evening";
+    greetingEl.textContent = NAME ? greeting + ", " + NAME : greeting;
+
+    dateEl.textContent = now.toLocaleDateString(undefined, {
+      weekday: "long", day: "numeric", month: "long", year: "numeric"
+    });
+
+    var dark = hour >= DARK_FROM || hour < DARK_UNTIL;
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    if (themeMeta) themeMeta.setAttribute("content", dark ? "#18221c" : "#f6f2e7");
+  }
+
+  btn.addEventListener("click", change);
+  updateClock();
+  show(pickNext());
+
+  // Keep greeting, date and theme right if the tab stays open for hours.
+  setInterval(updateClock, 5 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
